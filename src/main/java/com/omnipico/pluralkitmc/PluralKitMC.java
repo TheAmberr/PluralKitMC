@@ -1,6 +1,7 @@
 package com.omnipico.pluralkitmc;
 import github.scarsz.discordsrv.DiscordSRV;
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.milkbowl.vault.chat.Chat;
 import org.apache.commons.lang3.concurrent.TimedSemaphore;
 import org.bukkit.Bukkit;
@@ -38,7 +39,8 @@ public class PluralKitMC extends JavaPlugin {
         CommandPK commandPK = new CommandPK(data, this);
         this.getCommand("pk").setExecutor(commandPK);
         this.getCommand("pk").setTabCompleter(commandPK);
-        proxyListener = new ProxyListener(data, config, chat, discord, havePlaceholderAPI);
+        audiences = BukkitAudiences.create(this);
+        proxyListener = new ProxyListener(data, config, chat, discord, havePlaceholderAPI, audiences);
         getServer().getPluginManager().registerEvents(proxyListener, this);
     }
 
@@ -53,5 +55,9 @@ public class PluralKitMC extends JavaPlugin {
         proxyListener.setConfig(config);
         data.setConfig(config);
     }
+
+    private BukkitAudiences audiences;
+
+
 
 }
