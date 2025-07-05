@@ -1,197 +1,143 @@
 package com.omnipico.pluralkitmc;
 
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatUtils {
-    final static BaseComponent[] pluginComponent = new ComponentBuilder("Plural").color(ChatColor.WHITE).append("Kit").color(ChatColor.GRAY).append("MC").color(ChatColor.AQUA).create();
-    final static BaseComponent[] pluginTag = new ComponentBuilder("[").color(ChatColor.WHITE).append(pluginComponent).append("]").color(ChatColor.WHITE).create();
-    final static BaseComponent[] helpMessage = new ComponentBuilder()
-            .append(pluginTag)
-            .append(" Help").color(ChatColor.GREEN)
-            .append("\nCommands: ").color(ChatColor.GREEN)
-            .append("\n/pk help ").color(ChatColor.AQUA)
-            .append("-- Lists the ").color(ChatColor.GREEN).append(pluginComponent).append(" commands").color(ChatColor.GREEN)
-            .append("\n/pk load <system id> ").color(ChatColor.AQUA)
-            .append("-- Links you to the given system id").color(ChatColor.GREEN)
-            .append("\n/pk update ").color(ChatColor.AQUA)
-            .append("-- Forces your system information to refresh").color(ChatColor.GREEN)
-            .append("\n/pk link <token> ").color(ChatColor.AQUA)
-            .append("-- Links your account to the token from pk;token").color(ChatColor.GREEN)
-            .append("\n/pk unlink ").color(ChatColor.AQUA)
-            .append("-- Removes the attached token").color(ChatColor.GREEN)
-            .append("\n/pk autoproxy <off/front/latch/member>").color(ChatColor.AQUA)
-            .append("-- Configures your autoproxy settings").color(ChatColor.GREEN)
-            .append("\n/pk switch [out/member...]").color(ChatColor.AQUA)
-            .append("-- Switch out or to one or more member").color(ChatColor.GREEN)
-            .append("\n/pk find <search term>").color(ChatColor.AQUA)
-            .append("-- Searches for a member by name").color(ChatColor.GREEN)
-            .append("\n/pk random").color(ChatColor.AQUA)
-            .append("-- Lists a random member from your system").color(ChatColor.GREEN)
-            .append("\n/pk member <member>").color(ChatColor.AQUA)
-            .append("-- Display information regarding a user in your system").color(ChatColor.GREEN)
-            .append("\n/pk system [list] [full]").color(ChatColor.AQUA)
-            .append("-- Display information regarding your system, or list its members").color(ChatColor.GREEN)
-            .create();
+    private static final MiniMessage mm = MiniMessage.miniMessage();
+
+    static final Component pluginComponent = mm.deserialize("<white>Plural<gray>Kit<aqua>MC");
+    public static final Component pluginTag = mm.deserialize("<light_purple>[PluralKitMC]</light_purple> ");
+    static final Component helpMessage = mm.deserialize(
+            mm.serialize(pluginTag) +
+                    "<green> Help\nCommands: " +
+                    "\n<aqua>/pk help <green>-- Lists the " + mm.serialize(pluginComponent) + "<green> commands" +
+                    "\n<aqua>/pk load <system id> <green>-- Links you to the given system id" +
+                    "\n<aqua>/pk update <green>-- Forces your system information to refresh" +
+                    "\n<aqua>/pk link <token> <green>-- Links your account to the token from pk;token" +
+                    "\n<aqua>/pk unlink <green>-- Removes the attached token" +
+                    "\n<aqua>/pk autoproxy <off/front/latch/member><green>-- Configures your autoproxy settings" +
+                    "\n<aqua>/pk switch [out/member...]<green>-- Switch out or to one or more member" +
+                    "\n<aqua>/pk find <search term><green>-- Searches for a member by name" +
+                    "\n<aqua>/pk random<green>-- Lists a random member from your system" +
+                    "\n<aqua>/pk member <member><green>-- Display information regarding a user in your system" +
+                    "\n<aqua>/pk system [list] [full]<green>-- Display information regarding your system, or list its members"
+    );
+
     static Pattern REPLACE_ALL_RGB_PATTERN = Pattern.compile("(&)?&(#[0-9a-fA-F]{6})");
 
     static String replaceColor(String input) {
-        input = ChatColor.translateAlternateColorCodes('&', input);
-        StringBuffer rgbBuilder = new StringBuffer();
-        Matcher rgbMatcher = REPLACE_ALL_RGB_PATTERN.matcher(input);
-        while (rgbMatcher.find()) {
-            boolean isEscaped = rgbMatcher.group(1) != null;
-            if (!isEscaped) {
-                try {
-                    final String hexCode = rgbMatcher.group(2);
-                    rgbMatcher.appendReplacement(rgbBuilder, ChatColor.of(hexCode).toString());
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
-        rgbMatcher.appendTail(rgbBuilder);
-        return rgbBuilder.toString();
+        // Not needed with MiniMessage, but if you want to support legacy codes:
+        input = input.replace("&", "§");
+        return input;
     }
 
-    static public BaseComponent[] displayMemberInfo(PluralKitMember member, PluralKitSystem system) {
-        ChatColor color = ChatColor.AQUA;
-        if (member.color != null) {
-            color = ChatColor.of("#" + member.color);
-        }
-        ComponentBuilder memberInfoBuilder = new ComponentBuilder()
-                .append(pluginTag)
-                .append(" Member information for ").color(ChatColor.GREEN);
-        if (system.name != null && system.name.length() > 0) {
-            memberInfoBuilder.append(member.name + " (" + system.name + ")").color(color);
+    public static Component displayMemberInfo(PluralKitMember member, PluralKitSystem system) {
+        String color = member.color != null ? "<#" + member.color + ">" : "<aqua>";
+        StringBuilder sb = new StringBuilder();
+        sb.append(mm.serialize(pluginTag));
+        sb.append("<green> Member information for ");
+        if (system.name != null && !system.name.isEmpty()) {
+            sb.append(color).append(member.name).append(" <gray>(").append(system.name).append(")");
         } else {
-            memberInfoBuilder.append(member.name).color(color);
+            sb.append(color).append(member.name);
         }
-        memberInfoBuilder.append("\nDisplay Name: ").color(ChatColor.GREEN).append(member.name).color(color);
+        sb.append("<green>\nDisplay Name: ").append(color).append(member.name);
         if (member.getBirthday() != null) {
-            memberInfoBuilder.append("\nBirthday: ").color(ChatColor.GREEN).append(member.getBirthday()).color(ChatColor.AQUA);
+            sb.append("<green>\nBirthday: <aqua>").append(member.getBirthday());
         }
         if (member.getPronouns() != null) {
-            memberInfoBuilder.append("\nPronouns: ").color(ChatColor.GREEN).append(member.getPronouns()).color(ChatColor.AQUA);
+            sb.append("<green>\nPronouns: <aqua>").append(member.getPronouns());
         }
         if (member.getColor() != null) {
-            memberInfoBuilder.append("\nColor: ").color(ChatColor.GREEN).append("#" + member.getColor()).color(color);
+            sb.append("<green>\nColor: ").append(color).append("#").append(member.getColor());
         }
-        if (member.getProxy_tags() != null) {
-            List<PluralKitProxy> proxyTags = member.getProxy_tags();
-            if (proxyTags.size() > 0) {
-                memberInfoBuilder.append("\nProxy Tags: ").color(ChatColor.GREEN);
-                for (int i = 0; i < proxyTags.size(); i++) {
-                    PluralKitProxy proxyTag = proxyTags.get(i);
-                    if (i > 0) {
-                        memberInfoBuilder.append(", ").color(ChatColor.GREEN);
-                    }
-                    memberInfoBuilder.append(proxyTag.getPrefix() + "text" + proxyTag.getSuffix()).color(ChatColor.GRAY);
-                }
+        if (member.getProxy_tags() != null && !member.getProxy_tags().isEmpty()) {
+            sb.append("<green>\nProxy Tags: ");
+            for (int i = 0; i < member.getProxy_tags().size(); i++) {
+                if (i > 0) sb.append("<green>, ");
+                PluralKitProxy proxyTag = member.getProxy_tags().get(i);
+                sb.append("<gray>").append(proxyTag.getPrefix()).append("text").append(proxyTag.getSuffix());
             }
         }
         if (member.getDescription() != null) {
-            memberInfoBuilder.append("\nDescription: ").color(ChatColor.GREEN).append(member.getDescription()).color(ChatColor.GRAY);
+            sb.append("<green>\nDescription: <gray>").append(member.getDescription());
         }
-        memberInfoBuilder.append("\nCreated: ").color(ChatColor.GREEN).append(member.getCreated()).color(ChatColor.AQUA);
-        memberInfoBuilder.append("\nSystem ID: ").color(ChatColor.GREEN).append(system.getId()).color(ChatColor.GRAY);
-        memberInfoBuilder.append("\nMember ID: ").color(ChatColor.GREEN).append(member.getId()).color(ChatColor.GRAY);
-        return memberInfoBuilder.create();
+        sb.append("<green>\nCreated: <aqua>").append(member.getCreated());
+        sb.append("<green>\nSystem ID: <gray>").append(system.getId());
+        sb.append("<green>\nMember ID: <gray>").append(member.getId());
+        return mm.deserialize(sb.toString());
     }
 
-    static public BaseComponent[] displaySystemInfo(PluralKitSystem system) {
-        ComponentBuilder systemInfoBuilder = new ComponentBuilder()
-                .append(pluginTag)
-                .append(" System information for ").color(ChatColor.GREEN);
-        if (system.name != null && system.name.length() > 0) {
-            systemInfoBuilder.append(system.name).color(ChatColor.AQUA)
-                    .append(" (").color(ChatColor.GREEN)
-                    .append(system.id).color(ChatColor.GRAY)
-                    .append(")").color(ChatColor.GREEN);
+    public static Component displaySystemInfo(PluralKitSystem system) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(mm.serialize(pluginTag));
+        sb.append("<green> System information for ");
+        if (system.name != null && !system.name.isEmpty()) {
+            sb.append("<aqua>").append(system.name)
+                    .append("<green> (<gray>").append(system.id).append("<green>)");
         } else {
-            systemInfoBuilder.append(system.id).color(ChatColor.GRAY);
+            sb.append("<gray>").append(system.id);
         }
         if (system.tag != null) {
-            systemInfoBuilder.append("\nTag: ").color(ChatColor.GREEN).append(system.tag).color(ChatColor.AQUA);
+            sb.append("<green>\nTag: <aqua>").append(system.tag);
         }
-        if (system.description != null && system.description.length() > 0) {
-            systemInfoBuilder.append("\nDescription: ").color(ChatColor.GREEN).append(system.description).color(ChatColor.GRAY);
+        if (system.description != null && !system.description.isEmpty()) {
+            sb.append("<green>\nDescription: <gray>").append(system.description);
         }
-        return systemInfoBuilder.create();
+        return mm.deserialize(sb.toString());
     }
 
-    static public BaseComponent[] displayMemberListForm(PluralKitMember member) {
-        ChatColor color = ChatColor.AQUA;
-        if (member.color != null) {
-            color = ChatColor.of("#" + member.color);
-        }
-        ComponentBuilder memberInfoBuilder = new ComponentBuilder()
-                .append("[").color(ChatColor.WHITE)
-                .append(member.id).color(ChatColor.GRAY)
-                .append("] ").color(ChatColor.WHITE)
-                .append(member.name).color(color);
-        if (member.getProxy_tags() != null) {
-            List<PluralKitProxy> proxyTags = member.getProxy_tags();
-            if (proxyTags.size() > 0) {
-                memberInfoBuilder.append(" (").color(ChatColor.WHITE);
-                for (int i = 0; i < proxyTags.size(); i++) {
-                    PluralKitProxy proxyTag = proxyTags.get(i);
-                    if (i > 0) {
-                        memberInfoBuilder.append(", ").color(ChatColor.WHITE);
-                    }
-                    memberInfoBuilder.append(proxyTag.getPrefix() + "text" + proxyTag.getSuffix()).color(ChatColor.GRAY);
-                }
-                memberInfoBuilder.append(")").color(ChatColor.WHITE);
+    public static Component displayMemberListForm(PluralKitMember member) {
+        String color = member.color != null ? "<#" + member.color + ">" : "<aqua>";
+        StringBuilder sb = new StringBuilder();
+        sb.append("<white>[<gray>").append(member.id).append("<white>] ").append(color).append(member.name);
+        if (member.getProxy_tags() != null && !member.getProxy_tags().isEmpty()) {
+            sb.append("<white> (");
+            for (int i = 0; i < member.getProxy_tags().size(); i++) {
+                if (i > 0) sb.append("<white>, ");
+                PluralKitProxy proxyTag = member.getProxy_tags().get(i);
+                sb.append("<gray>").append(proxyTag.getPrefix()).append("text").append(proxyTag.getSuffix());
             }
+            sb.append("<white>)");
         }
-        return memberInfoBuilder.create();
+        return mm.deserialize(sb.toString());
     }
 
-    static public BaseComponent[] displayMemberList(List<PluralKitMember> members, PluralKitSystem system) {
-        ComponentBuilder memberListBuilder = new ComponentBuilder()
-                .append(pluginTag)
-                .append(" Members of ").color(ChatColor.GREEN);
-        if (system.name != null && system.name.length() > 0) {
-            memberListBuilder.append(system.name).color(ChatColor.AQUA)
-                    .append(" (").color(ChatColor.GREEN)
-                    .append(system.id).color(ChatColor.GRAY)
-                    .append(")").color(ChatColor.GREEN);
+    public static Component displayMemberList(List<PluralKitMember> members, PluralKitSystem system) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(mm.serialize(pluginTag));
+        sb.append("<green> Members of ");
+        if (system.name != null && !system.name.isEmpty()) {
+            sb.append("<aqua>").append(system.name)
+                    .append("<green> (<gray>").append(system.id).append("<green>)");
         } else {
-            memberListBuilder.append(system.id).color(ChatColor.GRAY);
+            sb.append("<gray>").append(system.id);
         }
-        for (int i = 0; i < members.size(); i++) {
-            PluralKitMember member = members.get(i);
-            memberListBuilder.append("\n")
-                    .append(displayMemberListForm(member));
-
+        for (PluralKitMember member : members) {
+            sb.append("\n").append(mm.serialize(displayMemberListForm(member)));
         }
-        return memberListBuilder.create();
+        return mm.deserialize(sb.toString());
     }
 
-    static public BaseComponent[] displayMemberSearch(List<PluralKitMember> members, PluralKitSystem system, String search) {
-        ComponentBuilder memberListBuilder = new ComponentBuilder()
-                .append(pluginTag)
-                .append(" Members of ").color(ChatColor.GREEN);
-        if (system.name != null && system.name.length() > 0) {
-            memberListBuilder.append(system.name).color(ChatColor.AQUA)
-                    .append(" (").color(ChatColor.GREEN)
-                    .append(system.id).color(ChatColor.GRAY)
-                    .append(")").color(ChatColor.GREEN);
+    public static Component displayMemberSearch(List<PluralKitMember> members, PluralKitSystem system, String search) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(mm.serialize(pluginTag));
+        sb.append("<green> Members of ");
+        if (system.name != null && !system.name.isEmpty()) {
+            sb.append("<aqua>").append(system.name)
+                    .append("<green> (<gray>").append(system.id).append("<green>)");
         } else {
-            memberListBuilder.append(system.id).color(ChatColor.GRAY);
+            sb.append("<gray>").append(system.id);
         }
-        memberListBuilder.append(" matching ").color(ChatColor.GREEN)
-                .append(search).color(ChatColor.AQUA);
-        for (int i = 0; i < members.size(); i++) {
-            PluralKitMember member = members.get(i);
-            memberListBuilder.append("\n")
-                    .append(displayMemberListForm(member));
-
+        sb.append("<green> matching <aqua>").append(search);
+        for (PluralKitMember member : members) {
+            sb.append("\n").append(mm.serialize(displayMemberListForm(member)));
         }
-        return memberListBuilder.create();
+        return mm.deserialize(sb.toString());
     }
 }

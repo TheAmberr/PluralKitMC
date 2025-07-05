@@ -7,10 +7,12 @@ import org.apache.commons.lang3.concurrent.TimedSemaphore;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 
 import java.util.concurrent.TimeUnit;
 
 public class PluralKitMC extends JavaPlugin {
+    private BukkitAudiences adventure;
     Chat chat;
     PluralKitData data;
     ProxyListener proxyListener;
@@ -42,11 +44,16 @@ public class PluralKitMC extends JavaPlugin {
         audiences = BukkitAudiences.create(this);
         proxyListener = new ProxyListener(data, config, chat, discord, havePlaceholderAPI, audiences);
         getServer().getPluginManager().registerEvents(proxyListener, this);
+        this.adventure = BukkitAudiences.create(this);
     }
 
     @Override
     public void onDisable() {
-        //Fired when the server stops and disables all plugins
+        if (this.adventure != null) this.adventure.close();
+    }
+
+    public BukkitAudiences adventure() {
+        return this.adventure;
     }
 
     public void reloadConfigData() {
@@ -57,7 +64,6 @@ public class PluralKitMC extends JavaPlugin {
     }
 
     private BukkitAudiences audiences;
-
 
 
 }

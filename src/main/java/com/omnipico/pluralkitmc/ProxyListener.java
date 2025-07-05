@@ -132,8 +132,13 @@ public class ProxyListener implements Listener {
             event.setMessage(message);
 
             String ourFormat = format;
-            String nameColor = proxiedMember.color == null ? defaultNameColor : ChatUtils.replaceColor("&#" + proxiedMember.color);
-            ourFormat = ourFormat.replace("%member%", nameColor + "%member%");
+            String colorTag;
+            if (proxiedMember.color != null && !proxiedMember.color.isEmpty()) {
+                colorTag = "<#" + proxiedMember.color + ">";
+            } else {
+                colorTag = "<aqua>";
+            }
+            ourFormat = ourFormat.replace("%member%", colorTag + "%member%");
 
             String prefix = chat != null ? ChatUtils.replaceColor(chat.getPlayerPrefix(player)) : "";
             String suffix = chat != null ? ChatUtils.replaceColor(chat.getPlayerSuffix(player)) : "";
