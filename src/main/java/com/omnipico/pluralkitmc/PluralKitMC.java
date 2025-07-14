@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public class PluralKitMC extends JavaPlugin {
@@ -36,19 +37,22 @@ public class PluralKitMC extends JavaPlugin {
         // Soft deps
         if (Bukkit.getServer().getPluginManager().getPlugin("Vault") != null){
             chat = getServer().getServicesManager().load(Chat.class);
-        }
+        } else { getLogger().warning("Vault plugin not found!"); }
         if (Bukkit.getServer().getPluginManager().getPlugin("DiscordSRV") != null){
             discord = DiscordSRV.getPlugin();
-        }
+        } else { getLogger().warning("DiscordSRV plugin not found!"); }
         havePlaceholderAPI = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
-
+        if (!havePlaceholderAPI) {
+            getLogger().warning("PlaceholderAPI plugin not found!");
+        }
         this.data = new PluralKitData(this);
 
         CommandPK commandPK = new CommandPK(data, this);
-        this.getCommand("pk").setExecutor(commandPK);
-        this.getCommand("pk").setTabCompleter(commandPK);
+        Objects.requireNonNull(this.getCommand("pk")).setExecutor(commandPK);
+        Objects.requireNonNull(this.getCommand("pk")).setTabCompleter(commandPK);
         audiences = BukkitAudiences.create(this);
         proxyListener = new ProxyListener(data, chat, discord, havePlaceholderAPI, audiences);
+        proxyListener.setConfig(this.getConfig());
         getServer().getPluginManager().registerEvents(proxyListener, this);
         this.adventure = BukkitAudiences.create(this);
     }

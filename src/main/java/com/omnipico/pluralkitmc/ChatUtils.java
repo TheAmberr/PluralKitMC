@@ -3,9 +3,12 @@ package com.omnipico.pluralkitmc;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 public class ChatUtils {
     private static final MiniMessage mm = MiniMessage.miniMessage();
@@ -29,7 +32,15 @@ public class ChatUtils {
     );
 
     static Pattern REPLACE_ALL_RGB_PATTERN = Pattern.compile("(&)?&(#[0-9a-fA-F]{6})");
-
+    private static String formatCreated(String created) {
+        try {
+            Instant instant = Instant.parse(created);
+            LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+            return dateTime.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        } catch (Exception e) {
+            return created; // :c no worky
+        }
+    }
     static String replaceColor(String input) {
         // Not needed with MiniMessage, but if you want to support legacy codes:
         input = input.replace("&", "§");
@@ -67,7 +78,7 @@ public class ChatUtils {
         if (member.getDescription() != null) {
             sb.append("<green>\nDescription: <gray>").append(member.getDescription());
         }
-        sb.append("<green>\nCreated: <aqua>").append(member.getCreated());
+        sb.append("<green>\nCreated: <aqua>").append(formatCreated(member.getCreated()));
         sb.append("<green>\nSystem ID: <gray>").append(system.getId());
         sb.append("<green>\nMember ID: <gray>").append(member.getId());
         return mm.deserialize(sb.toString());

@@ -94,7 +94,6 @@ public class CacheManager {
             plugin.getLogger().severe("Could not save to cache, error: " + e.getMessage());
         }
     }
-
     public static void addToMemCache(UserCache u) {
         memUserCache.put(u.uuid, u);
     }

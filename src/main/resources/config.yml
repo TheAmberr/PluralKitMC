@@ -1,5 +1,6 @@
 #Configuration
 #Update frequency, in milliseconds (300000 = 5 minutes)
+# Suggestions: 30000 = 30s | 60000 = 1m | 300000 = 5m | 900000 = 15m | 1800000 = 30m
 cache_update_frequency: 300000
 #Message format, %member% is replaced with the member display name, %message% is replaced with the message
 #If Vault is installed, %prefix% and %suffix% may be used for the player's prefix and suffix, respectively
