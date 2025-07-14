@@ -1,68 +1,47 @@
 package com.omnipico.pluralkitmc;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+// import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
+// import org.bukkit.configuration.file.FileConfiguration;
+// import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
-import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.*;
+import com.omnipico.pluralkitmc.database.CacheManager;
 
 public class UserCache {
-    UUID uuid;
-    String systemId = "";
-    String token = "";
-    List<PluralKitMember> members = new ArrayList<>();
-    PluralKitSystem system = null;
-    long lastUpdated = 0;
-    boolean updateMembersToggle = false;
-    String autoProxyMode = "off";
+    public UUID uuid;
+    public String systemId = "";
+    public String token = "";
+    public List<PluralKitMember> members = new ArrayList<>();
+    public PluralKitSystem system = null;
+    public long lastUpdated = 0;
+    public boolean updateMembersToggle = false;
+    public String autoProxyMode = "off";
     String autoProxyMember = null;
     String lastProxied = null;
     List<PluralKitMember> fronters = new ArrayList<>();
     PluralKitMC plugin;
-    FileConfiguration config;
-
-    public UserCache(UUID uuid, String systemId, PluralKitMC plugin, boolean blocking) {
-        this.uuid = uuid;
-        this.systemId = systemId;
-        this.plugin = plugin;
-        config = plugin.getConfig();
-        loadFromConfig();
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
-            @Override
-            public void run() {
-                update(blocking);
-            }
-        });
-    }
 
     public UserCache(UUID uuid, String systemId, String token, PluralKitMC plugin, boolean blocking) {
         this.uuid = uuid;
         this.systemId = systemId;
         this.token = token;
         this.plugin = plugin;
-        config = plugin.getConfig();
-        loadFromConfig();
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
-            @Override
-            public void run() {
-                update(blocking);
-            }
-        });
+        // oops this was boom boom line :3
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> update(blocking));
     }
 
     public void update(boolean blocking) {
         Date date = new Date();
         lastUpdated = date.getTime();
-        // Alternate between updating members and system if this is not blocking (to avoid hitting rate limits)
         if (blocking) {
             updateSystem(true);
             updateMembers(true);
@@ -73,27 +52,12 @@ public class UserCache {
             updateSystem(false);
             updateMembersToggle = !updateMembersToggle;
         }
-        if (config.getBoolean("cache_data", false)) {
-            Gson gson = new Gson();
-            config.set("players." + uuid.toString() + ".system_cache", gson.toJson(system));
-            config.set("players." + uuid.toString() + ".members_cache", gson.toJson(members));
-            plugin.saveConfig();
-        }
+        saveToDatabaseAndCache();
     }
 
-    private void loadFromConfig() {
-        autoProxyMode = config.getString("players." + uuid.toString() + ".ap_mode", "off");
-        autoProxyMember = config.getString("players." + uuid.toString() + ".ap_member", "");
-        if (config.getBoolean("cache_data", false)) {
-            if (config.contains("players." + uuid.toString() + ".system_cache")) {
-                system = new Gson().fromJson(config.getString("players." + uuid.toString() + ".system_cache"), PluralKitSystem.class);
-            }
-            if (config.contains("players." + uuid.toString() + ".members_cache")) {
-                Type listType = new TypeToken<List<PluralKitMember>>() {
-                }.getType();
-                members = new Gson().fromJson(config.getString("players." + uuid.toString() + ".members_cache"), listType);
-            }
-        }
+    private void saveToDatabaseAndCache() {
+        CacheManager.saveToDatabase(this, plugin);
+        CacheManager.addToMemCache(this);
     }
 
     private void updateSystem(boolean blocking) {
@@ -112,8 +76,8 @@ public class UserCache {
         }
         URL url = null;
         try {
-            url = new URL("https://api.pluralkit.me/v2/systems/" + systemId);
-        } catch (MalformedURLException e) {
+            url = new URI("https://api.pluralkit.me/v2/systems/" + systemId).toURL();
+        } catch (Exception e) {
             system = null;
         }
         InputStreamReader reader;
@@ -131,8 +95,6 @@ public class UserCache {
                 InputStreamReader errorReader = new InputStreamReader(conn.getErrorStream());
                 PluralKitError pkError = new Gson().fromJson(errorReader, PluralKitError.class);
                 if (pkError.retryAfter != null) {
-                    // Hit a rate limit
-                    // Unfortunately, we can't really disable the semaphore
                     plugin.getLogger().severe("Hit a rate limit while fetching system info for " + systemId);
                 }
             } else {
@@ -162,8 +124,8 @@ public class UserCache {
         }
         URL url = null;
         try {
-            url = new URL("https://api.pluralkit.me/v2/systems/" + systemId + "/members");
-        } catch (MalformedURLException e) {
+            url = new URI("https://api.pluralkit.me/v2/systems/" + systemId + "/members").toURL();
+        } catch (Exception e) {
             members = new ArrayList<>();
         }
         InputStreamReader reader;
@@ -181,9 +143,7 @@ public class UserCache {
                 InputStreamReader errorReader = new InputStreamReader(conn.getErrorStream());
                 PluralKitError pkError = new Gson().fromJson(errorReader, PluralKitError.class);
                 if (pkError.retryAfter != null) {
-                    // Hit a rate limit
-                    // Unfortunately, we can't really disable the semaphore
-                    plugin.getLogger().severe("Hit a rate limit while fetching system members for " + systemId);
+                    plugin.getLogger().warning("Hit a rate limit while fetching system members for " + systemId);
                 }
             } else {
                 plugin.getLogger().warning("Failed to get system members for " + systemId);
@@ -219,8 +179,8 @@ public class UserCache {
         }
         URL url = null;
         try {
-            url = new URL("https://api.pluralkit.me/v2/systems/@me");
-        } catch (MalformedURLException e) {
+            url = new URI("https://api.pluralkit.me/v2/systems/@me").toURL();
+        } catch (Exception e) {
             return null;
         }
         InputStreamReader reader = null;
@@ -243,9 +203,8 @@ public class UserCache {
     }
 
     public PluralKitMember getMemberById(String id) {
-        for (int i = 0; i < members.size(); i++) {
-            PluralKitMember member = members.get(i);
-            if (member.id.toLowerCase().equals(id.toLowerCase())) {
+        for (PluralKitMember member : members) {
+            if (member.id.equalsIgnoreCase(id)) {
                 return member;
             }
         }
@@ -255,7 +214,7 @@ public class UserCache {
     public PluralKitMember getMemberByIdOrName(String id) {
         for (int i = 0; i < members.size(); i++) {
             PluralKitMember member = members.get(i);
-            if (member.id.toLowerCase().equals(id.toLowerCase()) || member.name.toLowerCase().equals(id.toLowerCase())) {
+            if (member.id.equalsIgnoreCase(id) || member.name.equalsIgnoreCase(id)) {
                 return member;
             }
         }
@@ -263,7 +222,7 @@ public class UserCache {
     }
 
     public PluralKitMember getRandomMember() {
-        if (members != null && members.size() > 0)
+        if (members != null && !members.isEmpty())
         {
             return members.get(new Random().nextInt(members.size()));
         }
@@ -272,8 +231,7 @@ public class UserCache {
 
     public List<PluralKitMember> searchMembers(String search) {
         List<PluralKitMember> result = new ArrayList<>();
-        for (int i = 0; i < members.size(); i++) {
-            PluralKitMember member = members.get(i);
+        for (PluralKitMember member : members) {
             if (member.name.toLowerCase().contains(search.toLowerCase())) {
                 result.add(member);
             }
@@ -321,7 +279,7 @@ public class UserCache {
     }
 
     public PluralKitMember getFirstFronter() {
-        if (fronters.size() > 0) {
+        if (!fronters.isEmpty()) {
             return fronters.get(0);
         } else {
             return null;
@@ -334,5 +292,18 @@ public class UserCache {
 
     public void setLastProxied(String lastProxied) {
         this.lastProxied = lastProxied;
+    }
+
+    public static UserCache loadOrCreate(UUID uuid, String systemId, String token, PluralKitMC plugin, boolean blocking) {
+        UserCache cached = CacheManager.getFromMemCache(uuid);
+        if (cached != null) return cached;
+        UserCache dbLoaded = CacheManager.loadFromDatabase(uuid, plugin);
+        if (dbLoaded != null) {
+            CacheManager.addToMemCache(dbLoaded);
+            return dbLoaded;
+        }
+        UserCache created = new UserCache(uuid, systemId, token, plugin, blocking);
+        CacheManager.addToMemCache(created);
+        return created;
     }
 }
