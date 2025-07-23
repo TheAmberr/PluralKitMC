@@ -1,8 +1,6 @@
 package com.omnipico.pluralkitmc;
 
 import java.util.List;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.Component;
 
 public class PluralKitMember {
     String id;

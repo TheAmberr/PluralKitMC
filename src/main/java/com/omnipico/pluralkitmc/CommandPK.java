@@ -35,15 +35,10 @@ public class CommandPK implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
+        if (sender instanceof Player player) {
             if (args.length >= 1) {
                 String arg0 = args[0].toLowerCase();
                 switch (arg0) {
-                    case "help":
-                    case "h":
-                        plugin.adventure().player(player).sendMessage(ChatUtils.helpMessage);
-                        break;
                     case "update":
                     case "u":
                         if (player.hasPermission("pluralkitmc.update") || player.hasPermission("pluralkitmc.*") || player.hasPermission("*")) {
@@ -286,62 +281,53 @@ public class CommandPK implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        List<String> subCommands = new ArrayList<>();
-        subCommands.add("help");
-        subCommands.add("update");
-        subCommands.add("load");
-        subCommands.add("link");
-        subCommands.add("unlink");
-        subCommands.add("system");
-        subCommands.add("find");
-        subCommands.add("autoproxy");
-        subCommands.add("member");
-        subCommands.add("random");
-        subCommands.add("switch");
-        subCommands.add("reload");
+        List<String> subCommands = List.of("help", "update", "load", "link", "unlink", "system", "find", "autoproxy", "member", "random", "switch", "reload");
+
         if (args.length == 1) {
-            return subCommands;
-        } else {
-            String subCommand = args[0].toLowerCase();
-            if (subCommand.equals("system") || subCommand.equals("s")) {
-                List<String> specificSystemCommands = new ArrayList<>();
-                specificSystemCommands.add("list");
-                specificSystemCommands.add("fronter");
-                if (args.length == 2) {
-                    List<String> systemCommands = new ArrayList<>();
-                    systemCommands.addAll(specificSystemCommands);
-                    return systemCommands;
-                } else {
-                    String systemSub = args[1].toLowerCase();
-                    if (args.length == 3 && systemSub.equals("proxy")) {
-                        List<String> proxyCommands = new ArrayList<>();
-                        proxyCommands.add("on");
-                        proxyCommands.add("off");
-                        return proxyCommands;
-                    } else if (args.length == 3 && systemSub.length() == 5) {
-                        return specificSystemCommands;
-                    }
-                }
-            } else if (subCommand.equals("autoproxy") || subCommand.equals("ap")) {
-                if (args.length == 2) {
-                    List<String> autoProxyCommands = new ArrayList<>();
-                    autoProxyCommands.add("off");
-                    autoProxyCommands.add("front");
-                    autoProxyCommands.add("latch");
-                    autoProxyCommands.addAll(getMemberList(sender));
-                    return autoProxyCommands;
-                }
-            } else if (subCommand.equals("member") || subCommand.equals("m")) {
-                if (args.length == 2) {
-                    List<String> subMember = getMemberList(sender);
-                    return subMember;
-                }
-            } else if (subCommand.equals("switch") || subCommand.equals("sw")) {
-                List<String> subMember = getMemberList(sender);
-                subMember.add("out");
-                return subMember;
-            }
+            String input = args[0].toLowerCase();
+            return subCommands.stream()
+                    .filter(cmd -> cmd.startsWith(input))
+                    .toList();
         }
-        return null;
+
+        String subCommand = args[0].toLowerCase();
+
+        if ((subCommand.equals("system") || subCommand.equals("s")) && args.length == 2) {
+            List<String> systemCommands = List.of("list", "fronter");
+            String input = args[1].toLowerCase();
+            return systemCommands.stream()
+                    .filter(cmd -> cmd.startsWith(input))
+                    .toList();
+        }
+
+        if ((subCommand.equals("autoproxy") || subCommand.equals("ap")) && args.length == 2) {
+            List<String> autoProxyCommands = new ArrayList<>(List.of("off", "front", "latch"));
+            autoProxyCommands.addAll(getMemberList(sender));
+            String input = args[1].toLowerCase();
+            return autoProxyCommands.stream()
+                    .filter(cmd -> cmd.startsWith(input))
+                    .toList();
+        }
+
+        if ((subCommand.equals("member") || subCommand.equals("m")) && args.length == 2) {
+            String input = args[1].toLowerCase();
+            return getMemberList(sender).stream()
+                    .filter(name -> name.toLowerCase().startsWith(input))
+                    .toList();
+        }
+
+        if ((subCommand.equals("switch") || subCommand.equals("sw"))) {
+            List<String> subMember = getMemberList(sender);
+            subMember.add("out");
+            if (args.length >= 2) {
+                String input = args[args.length - 1].toLowerCase();
+                return subMember.stream()
+                        .filter(name -> name.toLowerCase().startsWith(input))
+                        .toList();
+            }
+            return subMember;
+        }
+
+        return List.of();
     }
 }

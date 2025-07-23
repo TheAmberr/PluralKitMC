@@ -1,6 +1,5 @@
 package com.omnipico.pluralkitmc;
 
-
 import github.scarsz.discordsrv.DiscordSRV;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.chat.BaseComponent;
@@ -28,7 +27,6 @@ import java.util.Arrays;
 import java.util.Objects;
 
 public class ProxyListener implements Listener {
-    //TODO: Make this a config option
     FileConfiguration config;
     String format;
     PluralKitData data;
@@ -39,17 +37,17 @@ public class ProxyListener implements Listener {
     BukkitAudiences audiences;
     MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public ProxyListener(PluralKitData data, FileConfiguration config, Chat chat,
-                         DiscordSRV discord, boolean usePlaceholderAPI, BukkitAudiences audiences) {
+    // Only config is for formatting/options, not data
+    public ProxyListener(PluralKitData data, Chat chat, DiscordSRV discord, boolean usePlaceholderAPI, BukkitAudiences audiences) {
         this.data = data;
         this.chat = chat;
         this.discord = discord;
         this.usePlaceholderAPI = usePlaceholderAPI;
         this.audiences = audiences;
-        setConfig(config);
+        // Config will be set via setConfig() after construction
     }
 
-
+    // Called by main plugin to set/reload config for formatting/options
     public void setConfig(FileConfiguration config) {
         this.config = config;
         defaultNameColor = ChatUtils.replaceColor(config.getString("default_name_color","&b"));
@@ -89,9 +87,7 @@ public class ProxyListener implements Listener {
                         .strikethrough(component.isStrikethrough())
                         .underlined(component.isUnderlined())
                         .font(component.getFont())
-                        .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                hoverText
-                        ))
+                        .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hoverText))
                         .create()));
                 if (component.toPlainText().length() > 8) {
                     BaseComponent[] post = new ComponentBuilder(component.toPlainText().substring(8))
@@ -165,10 +161,10 @@ public class ProxyListener implements Listener {
                 if (config.getBoolean("discordsrv_use_member_names", true)) {
                     String oldDisplayName = player.getDisplayName();
                     player.setDisplayName(fullMemberName);
-                    discord.processChatMessage(player, message, "global", false);
+                    discord.processChatMessage(player, message, "global", false, event);
                     player.setDisplayName(oldDisplayName);
                 } else {
-                    discord.processChatMessage(player, message, "global", false);
+                    discord.processChatMessage(player, message, "global", false, event);
                 }
             }
 
@@ -195,5 +191,4 @@ public class ProxyListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         data.clearCache(event.getPlayer().getUniqueId());
     }
-
 }

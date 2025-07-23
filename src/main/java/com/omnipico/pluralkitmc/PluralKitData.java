@@ -1,83 +1,59 @@
 package com.omnipico.pluralkitmc;
 
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
+import com.omnipico.pluralkitmc.database.CacheManager;
 
 import java.util.*;
 
 public class PluralKitData {
-    FileConfiguration config;
     PluralKitMC plugin;
-    Map<UUID, UserCache> userCache = new HashMap<>();
     long cacheUpdateFrequency;
 
-    public PluralKitData(FileConfiguration config, PluralKitMC plugin) {
-        this.config = config;
+    public PluralKitData(PluralKitMC plugin) {
         this.plugin = plugin;
-        cacheUpdateFrequency = config.getLong("cache_update_frequency");
+        this.cacheUpdateFrequency = plugin.getConfig().getLong("cache-update-frequency");
     }
 
-    public void setConfig(FileConfiguration config) {
-        this.config = config;
-    }
+    public void setConfig(org.bukkit.configuration.file.FileConfiguration config) {}
 
     String getSystemId(UUID uuid) {
-        if (userCache.containsKey(uuid)) {
-            return userCache.get(uuid).systemId;
-        } else {
-            if (this.config.contains("players." + uuid.toString() + ".system")) {
-                return this.config.getString("players." + uuid.toString() + ".system");
-            } else {
-                return null;
-            }
-        }
+        UserCache user = CacheManager.getFromMemCache(uuid);
+        return user != null ? user.systemId : null;
     }
 
     String getToken(UUID uuid) {
-        if (userCache.containsKey(uuid)) {
-            return userCache.get(uuid).token;
-        } else {
-            if (this.config.contains("players." + uuid.toString() + ".token")) {
-                return this.config.getString("players." + uuid.toString() + ".token");
-            } else {
-                return null;
-            }
-        }
+        UserCache user = CacheManager.getFromMemCache(uuid);
+        return user != null ? user.token : null;
     }
 
     void setSystemId(UUID uuid, String systemId) {
-        config.set("players." + uuid.toString() + ".system", systemId);
-        plugin.saveConfig();
         String token = null;
-        if (userCache.containsKey(uuid)) {
-            token = userCache.get(uuid).getToken();
+        UserCache user = CacheManager.getFromMemCache(uuid);
+        if (user != null) {
+            token = user.getToken();
         }
-        userCache.remove(uuid);
-        UserCache user = new UserCache(uuid, systemId, token, plugin, true);
-        userCache.put(uuid, user);
+        UserCache newUser = new UserCache(uuid, systemId, token, plugin, true);
+        CacheManager.addToMemCache(newUser);
+        CacheManager.saveToDatabase(newUser, plugin);
     }
 
     void setSystemId(UUID uuid, String systemId, String token) {
-        config.set("players." + uuid.toString() + ".system", systemId);
-        plugin.saveConfig();
-
-        userCache.remove(uuid);
-        UserCache user = new UserCache(uuid, systemId, token, plugin, true);
-        userCache.put(uuid, user);
+        UserCache newUser = new UserCache(uuid, systemId, token, plugin, true);
+        CacheManager.addToMemCache(newUser);
+        CacheManager.saveToDatabase(newUser, plugin);
     }
 
     UserCache getCacheOrCreate(UUID uuid, boolean blocking) {
-        if (userCache.containsKey(uuid)) {
-            UserCache user = userCache.get(uuid);
+        UserCache user = CacheManager.getFromMemCache(uuid);
+        if (user != null) {
             user.updateIfNeeded(cacheUpdateFrequency, blocking);
             return user;
         } else {
             String systemId = getSystemId(uuid);
             String token = getToken(uuid);
             if (systemId != null) {
-                UserCache user = new UserCache(uuid, systemId, token, plugin, blocking);
-                userCache.put(uuid, user);
-                return user;
+                UserCache newUser = new UserCache(uuid, systemId, token, plugin, blocking);
+                CacheManager.addToMemCache(newUser);
+                return newUser;
             } else {
                 return null;
             }
@@ -89,8 +65,6 @@ public class PluralKitData {
     }
 
     boolean setToken(UUID uuid, String token) {
-        config.set("players." + uuid.toString() + ".token", token);
-        plugin.saveConfig();
         UserCache user = getCacheOrCreate(uuid);
         String systemId = UserCache.verifyToken(plugin, token);
         if (systemId != null) {
@@ -99,8 +73,8 @@ public class PluralKitData {
             } else {
                 user.setToken(token);
                 user.update(true);
+                CacheManager.saveToDatabase(user, plugin);
             }
-            plugin.saveConfig();
             return true;
         }
         return false;
@@ -110,21 +84,18 @@ public class PluralKitData {
         UserCache userCache = getCacheOrCreate(uuid);
         if (userCache != null) {
             userCache.setAutoProxyMode(mode);
+            CacheManager.saveToDatabase(userCache, plugin);
         }
-        config.set("players." + uuid.toString() + ".ap_mode", mode);
-        plugin.saveConfig();
     }
 
     boolean updateAutoProxyMember(UUID uuid, String memberName) {
         UserCache userCache = getCacheOrCreate(uuid);
         memberName = memberName.toLowerCase();
         if (userCache != null) {
-            for (int i = 0; i < userCache.members.size(); i++) {
-                PluralKitMember member = userCache.members.get(i);
+            for (PluralKitMember member : userCache.members) {
                 if (member.id.equals(memberName) || member.name.toLowerCase().equals(memberName)) {
                     userCache.setAutoProxyMember(member.id);
-                    config.set("players." + uuid.toString() + ".ap_member", member.id);
-                    plugin.saveConfig();
+                    CacheManager.saveToDatabase(userCache, plugin);
                     return true;
                 }
             }
@@ -136,29 +107,32 @@ public class PluralKitData {
         UserCache userCache = getCacheOrCreate(uuid);
         if (userCache != null) {
             List<PluralKitMember> members = new ArrayList<>();
-            for (int i = 0; i < fronterNames.size(); i++) {
-                String fronterName = fronterNames.get(i);
+            for (String fronterName : fronterNames) {
                 PluralKitMember member = userCache.getMemberByIdOrName(fronterName);
                 if (member != null) {
                     members.add(member);
                 }
             }
             userCache.setFronters(members);
+            CacheManager.saveToDatabase(userCache, plugin);
         }
     }
 
     void updateCache(UUID uuid, boolean blocking) {
         UserCache user = getCacheOrCreate(uuid, blocking);
-        user.update(blocking);
+        if (user != null) {
+            user.update(blocking);
+            CacheManager.saveToDatabase(user, plugin);
+        }
     }
 
     void clearCache(UUID uuid) {
-        userCache.remove(uuid);
+        CacheManager.getFromMemCache(uuid);
     }
 
     String getSystemTag(UUID uuid) {
         UserCache user = getCacheOrCreate(uuid);
-        if (user != null) {
+        if (user != null && user.system != null) {
             return user.system.tag;
         } else {
             return null;
@@ -170,7 +144,7 @@ public class PluralKitData {
         if (user != null) {
             return user.members;
         } else {
-            return new ArrayList<PluralKitMember>();
+            return new ArrayList<>();
         }
     }
 
@@ -215,10 +189,8 @@ public class PluralKitData {
         List<PluralKitMember> members = getMembers(uuid);
         int fitStrength = 0;
         PluralKitMember bestFit = null;
-        for (int i = 0; i < members.size(); i++) {
-            PluralKitMember member = members.get(i);
-            for (int j = 0; j < member.proxy_tags.size(); j++) {
-                PluralKitProxy proxy = member.proxy_tags.get(j);
+        for (PluralKitMember member : members) {
+            for (PluralKitProxy proxy : member.proxy_tags) {
                 int proxyLength = 0;
                 if (proxy.getPrefix() != null) {
                     proxyLength += proxy.getPrefix().length();
@@ -226,8 +198,8 @@ public class PluralKitData {
                 if (proxy.getSuffix() != null) {
                     proxyLength += proxy.getSuffix().length();
                 }
-                if (message.length() > proxyLength && (proxy.getPrefix() == null || message.substring(0, proxy.getPrefix().length()).equals(proxy.getPrefix()))
-                        && (proxy.getSuffix() == null || message.substring(message.length()-proxy.getSuffix().length()).equals(proxy.getSuffix()))
+                if (message.length() > proxyLength && (proxy.getPrefix() == null || message.startsWith(proxy.getPrefix()))
+                        && (proxy.getSuffix() == null || message.endsWith(proxy.getSuffix()))
                         && (proxy.getPrefix() != null || proxy.getSuffix() != null)) {
                     if (proxyLength > fitStrength) {
                         fitStrength = proxyLength;
@@ -246,8 +218,9 @@ public class PluralKitData {
                 bestFit = user.getFirstFronter();
             }
         }
-        if (bestFit != null) {
+        if (bestFit != null && user != null) {
             user.setLastProxied(bestFit.id);
+            CacheManager.saveToDatabase(user, plugin);
         }
         return bestFit;
     }
@@ -257,10 +230,8 @@ public class PluralKitData {
         List<PluralKitMember> members = getMembers(uuid);
         int fitStrength = 0;
         PluralKitProxy bestFit = null;
-        for (int i = 0; i < members.size(); i++) {
-            PluralKitMember member = members.get(i);
-            for (int j = 0; j < member.proxy_tags.size(); j++) {
-                PluralKitProxy proxy = member.proxy_tags.get(j);
+        for (PluralKitMember member : members) {
+            for (PluralKitProxy proxy : member.proxy_tags) {
                 int proxyLength = 0;
                 if (proxy.getPrefix() != null) {
                     proxyLength += proxy.getPrefix().length();
@@ -268,8 +239,8 @@ public class PluralKitData {
                 if (proxy.getSuffix() != null) {
                     proxyLength += proxy.getSuffix().length();
                 }
-                if (message.length() > proxyLength && (proxy.getPrefix() == null || message.substring(0, proxy.getPrefix().length()).equals(proxy.getPrefix()))
-                        && (proxy.getSuffix() == null || message.substring(message.length()-proxy.getSuffix().length()).equals(proxy.getSuffix()))
+                if (message.length() > proxyLength && (proxy.getPrefix() == null || message.startsWith(proxy.getPrefix()))
+                        && (proxy.getSuffix() == null || message.endsWith(proxy.getSuffix()))
                         && (proxy.getPrefix() != null || proxy.getSuffix() != null)) {
                     if (proxyLength > fitStrength) {
                         fitStrength = proxyLength;
